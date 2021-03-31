@@ -64,10 +64,9 @@ public class CompanyController {
     @PostMapping("/lotsize")
     public ResponseEntity uploadLotSizes(@RequestParam(value = "file") MultipartFile file) {
         try {
-            String line1 [] = new String [3];
-            String name="";
-            String symbol_code = "";
-            int i = 0;
+            String symbol_code = "", name="",sector="",price,gcProfile="",address="",
+                    website="",auditor="",registrar="",fiscal_year_end="",key_people="";
+            double currentPrice = 0.00,lotszize = 1;
             if (file != null && !file.isEmpty()) {
                 File convFile = new File(Objects.requireNonNull(file.getOriginalFilename()));
                 FileOutputStream fos = new FileOutputStream(convFile);
@@ -83,21 +82,61 @@ public class CompanyController {
                         {
 //                            System.out.println(data[1].trim());
                             symbol_code = data[1].trim();
+                            lotszize = Double.parseDouble(data[2].trim());
                             Document doc = Jsoup.connect("https://dps.psx.com.pk/company/"+symbol_code).userAgent("Google/").get();
-                            Elements elements = doc.select("div.profile__item");
-                            Elements elements1 = doc.select("div.quote__name");
-                            name = elements1.select("div.quote__name").text();
-                            for (Element e : elements) {
-                                line1[i] = e.getElementsByTag("p").text();
-                                i++;
-                                if (i == 3) {
-                                    break;
-                                }
+
+                            // fetching profile,address,website,auditor,registrar,fis_year
+                            Elements elements = doc.select("div.profile__item > p");
+                            Elements bio = elements.eq(0);
+                            Elements add = elements.eq(1);
+                            Elements web = elements.eq(2);
+                            Elements aud = elements.eq(3);
+                            Elements reg = elements.eq(4);
+                            Elements fis_year = elements.eq(5);
+
+                            gcProfile = bio.select("p").text();
+                            address = add.select("p").text();
+                            website = web.select("p").text();
+                            registrar = reg.select("p").text();
+                            auditor = aud.select("p").text();
+                            fiscal_year_end = fis_year.select("p").text();
+
+                            //fetching data for name,sector,current,price
+                            Elements eleName = doc.select("div.quote__name");
+                            Elements eleSector = doc.select("div.quote__sector");
+                            Elements elecurrentPrice = doc.select("div.quote__close");
+                            name = eleName.select("div.quote__name").text();
+                            sector = eleSector.select("div.quote__sector").text();
+                            price = elecurrentPrice.select("div.quote__close").text();
+                            currentPrice = Double.parseDouble(price.substring(3));
+
+                            //fetching table for key people
+                            Elements table = doc.select("tbody.tbl__body");
+                            Elements tds = table.eq(0);
+                            key_people = tds.select("td").text();
+
+                            String CEO [] = key_people.split(("CEO "));
+                            String Chairman[] = (CEO[1].split("Chairman "));
+                            String Secretary [] = Chairman[0].split("Secretary");
+
+                            // Print all required data
+                            System.out.println("symbol:"+symbol_code);
+                            System.out.println("market:REG");
+                            System.out.println("gcName:"+name);
+                            System.out.println("key_people:"+CEO[0]+"@CEO|"+Chairman[0]+"@Chairman|"+Secretary[0]+"@Company Secretary");
+                            System.out.println("address:"+address);
+                            System.out.println("website:"+website);
+
+                            System.out.println("auditor:"+auditor);
+                            System.out.println("fiscal_year_end:"+fiscal_year_end);
+                            System.out.println("gcLotSize:"+lotszize);
+                            if (lotszize != 1){
+                                System.out.println("lotSizeEnabled:"+true);
                             }
-                            System.out.println(name);
-                            for(i=0; i<line1.length; i++){
-                                System.out.println(line1[i]);
-                            }
+                            System.out.println("gcProfile:"+gcProfile);
+                            System.out.println("gcSector:"+sector);
+                            System.out.println("registrar:"+registrar);
+                            System.out.println("currentPrice:"+currentPrice);
                         }
 //                        if (foundCompany != null) {
 //                            int lotSize = Integer.parseInt(data[2]);
@@ -136,5 +175,4 @@ public class CompanyController {
 //
 //        return ResponseEntity.ok(this.companyRepository.save(company));
 //    }
-
 }
